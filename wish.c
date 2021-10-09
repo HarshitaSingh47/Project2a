@@ -6,20 +6,36 @@
 #include <unistd.h>
 
 void runCD(char** cdargs){};
-void runLS(char** lsargs){
-    printf("We are in runLS\n");
-    int status;
+
+
+void runLS(){
+     int status;
     char *args[2];
 
-    printf("%s\n",lsargs[1]);
-
-    args[0] = "/bin/ls";        // first arg is the full path to the executable
-    args[1] = NULL;             // list of args must be NULL terminated
+    args[0] = "/bin/ls";        
+    args[1] = NULL;           
 
     if ( fork() == 0 )
-        execv( args[0], args ); // child: call execv with the path and the args
+        execv( args[0], args ); 
     else
-        wait( &status );        // parent: wait for the child (not really necessary)
+        wait( &status );        
+}
+
+void runLSwithArgs(char** lsargs){
+    int status;
+    char *binaryPath = "/bin/ls";       
+    char *args[] = {binaryPath,lsargs[1],lsargs[2], NULL};
+
+
+    if ( fork() == 0 ){
+        printf("%s\n\n",lsargs[1]);
+        if(strlen(lsargs[1])>0){
+             printf("We have an argument");
+        }
+        execv( binaryPath, args ); 
+        }
+    else
+        wait( &status );        
 }
 
 void sanitizeInput(char* input){
@@ -41,7 +57,14 @@ void sanitizeInput(char* input){
         i++;
     } while ((token = strtok(NULL, " \t\n")) != NULL);
 
-    if(strcmp(dict[0],"ls")==0) { runLS(dict); return; }
+    if(strcmp(dict[0],"ls")==0 && (dict[1] || dict[2] )) { runLSwithArgs(dict); return; }
+    else if(strcmp(dict[0],"ls")==0 ) { runLS(); return; }
+    if(strcmp(dict[0],"cd")==0){
+        
+    }
+
+
+
 
 
 }
