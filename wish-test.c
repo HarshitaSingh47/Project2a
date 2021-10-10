@@ -29,6 +29,7 @@ int main() {
         buffer[strcspn(buffer, "\n")] = 0;
 
         command = get_input(buffer);
+        
 
         if (!command[0]) {      /* Handle empty commands */
             free(buffer);
@@ -36,6 +37,20 @@ int main() {
             continue;
         }
 
+        else if(strcmp(command[0],"cd")==0){
+
+            
+            child_pid = fork();
+            if (child_pid == 0) {
+                /* Never returns if the call is successful */
+                int ret = chdir(command[1]);
+                
+            } else {
+                waitpid(child_pid, &stat_loc, WUNTRACED);
+            }
+
+        }
+        else{
         child_pid = fork();
         if (child_pid == 0) {
             /* Never returns if the call is successful */
@@ -43,6 +58,8 @@ int main() {
             printf("This won't be printed if execvp is successul\n");
         } else {
             waitpid(child_pid, &stat_loc, WUNTRACED);
+        }
+
         }
 
         free(buffer);
