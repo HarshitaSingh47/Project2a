@@ -4,11 +4,16 @@
 #include <readline/readline.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 char **get_input(char *);
 int index_cmd;
-char** path ; 
-int index_path = 0; 
+
+int index_path = 0 ; 
+
+
+
+
 
 int main() {
     char **command;
@@ -16,7 +21,10 @@ int main() {
     int stat_loc;
     char* buffer;
     size_t bufsize = 32;
-    path = (char**) malloc(bufsize*sizeof(char*));
+    char **path = calloc(32, sizeof(char *));
+    int i;
+    
+            
 
     while (1) {
 
@@ -43,6 +51,52 @@ int main() {
         }
 
         else if(strcmp(command[0],"path")==0){
+
+           
+            if(index_cmd==1) {
+                *path = NULL;
+                index_path = 0;
+            }
+
+            else{
+                int l;
+                int m = 1; 
+                l = index_path;
+                int ele = index_cmd-1;
+                printf("This is the index the path is at %d\n", index_path);
+                printf("The size of the command array is %d\n", index_cmd);
+
+                while (ele!=0)
+                {
+                    if(command[m]!=NULL){
+                    printf("Adding element to position %d\n",l);
+                    path[l] = command[m];
+                    printf("Writing %s to the path\n",command[m]);
+                    printf("This is what is written %s\n",path[l]);
+                    l++;
+                    m++;
+                    ele--;
+                    }
+                    else break;
+
+                    /* code */
+                }
+
+                index_path = l; 
+                printf("This is where the final index is at %d\n",index_path);
+                
+            }
+            int n = 0 ;
+            printf("This is where the final index is at %d\n",index_path);
+
+            while(n < index_path){
+
+                printf("%s\t", path[n]);
+                n++;
+
+            }
+
+        
 
         }
 
@@ -172,6 +226,44 @@ int main() {
             write(STDERR_FILENO, error_message, strlen(error_message)); 
         }
         }
+
+        else if(strcmp(command[1],">")==0){
+            if(index_cmd != 3){
+            
+            char error_message[30] = "An error has occurred\n";
+            write(STDERR_FILENO, error_message, strlen(error_message)); 
+
+
+            }
+
+            else{
+                //do something
+                child_pid = fork();
+                if (child_pid == 0) {
+                    /* Never returns if the call is successful */
+                    close(STDOUT_FILENO);
+                    open(command[3], O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+                    execve(command[0], command, path);
+                    printf("This won't be printed if execve is successul\n");
+                } else {
+                    waitpid(child_pid, &stat_loc, WUNTRACED);
+                }
+            }
+        }
+
+        else if(strstr(command[0],"sh")){
+
+        child_pid = fork();
+        if (child_pid == 0) {
+            /* Never returns if the call is successful */
+            execve(command[0], command, path);
+            printf("This won't be printed if execve is successul\n");
+        } else {
+            waitpid(child_pid, &stat_loc, WUNTRACED);
+        }
+
+        }
+
         else{
         child_pid = fork();
         if (child_pid == 0) {
@@ -193,12 +285,13 @@ int main() {
 
 char **get_input(char *input) {
     char **command = malloc(8 * sizeof(char *));
-    char *separator = " ";
+    char *separator = " >";
     char *parsed;
     index_cmd = 0;
 
     parsed = strtok(input, separator);
     while (parsed != NULL) {
+        
         command[index_cmd] = parsed;
         index_cmd++;
 
