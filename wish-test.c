@@ -13,6 +13,7 @@ int wish_cd(char**);
 int wish_loop(char**);
 int wish_path(char**);
 int wish_exit(char**);
+int execSystemCommands(char**);
 int index_path = 0 ; 
 char *builtin_cmd[] = {"cd",  "exit", "path", "loop"}; // "path",
 
@@ -36,9 +37,21 @@ int wish_loop(char** command){
     }
     else{
 
+        int i = 0 ;
+        int count = atoi(command[1]);
+        while(command[i]!=NULL){
+            command[i] = command[i+2];
+           // printf("Shifted command %s\n", command[i+2]);
+            i++;
+        }
+
+        while(count!=0){
+            execSystemCommands(command);
+            count--;
+        }
+        
 
         
-       // printf("Valid command\n");
     }
     return 0;
 }
