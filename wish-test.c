@@ -14,10 +14,34 @@ int wish_loop(char**);
 int wish_path(char**);
 int wish_exit(char**);
 int index_path = 0 ; 
-char *builtin_cmd[] = {"cd",  "exit"}; //"loop", "path",
+char *builtin_cmd[] = {"cd",  "exit", "path", "loop"}; // "path",
 
-int (*builtin_func[]) (char **) = {&wish_cd , &wish_exit}; //&wish_loop,&wish_path,  &wish_exit
+int (*builtin_func[]) (char **) = {&wish_cd , &wish_exit, &wish_path, &wish_loop}; //,&wish_path,  &wish_exit
 
+int wish_path(char** command){
+    return 1;
+}
+
+int wish_loop(char** command){
+    //printf("HERE IN WISH LOOP with %s \n", command[1]);
+    if(command[1] == NULL){
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+    }
+    
+
+    else if (atoi(command[1]) <=  0){
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+    }
+    else{
+
+
+        
+       // printf("Valid command\n");
+    }
+    return 0;
+}
 
 int wish_exit(char** command){
 
@@ -74,9 +98,10 @@ int execCommands(char** command){
     if(command[0]==NULL){
         return 1; 
     }
-    for(int i; i< num ; i++){
+    for(int i=0; i< num ; i++){
+     //   printf("Checking in exec commands %s %s\n", command[0], builtin_cmd[i]);
+
         if(strcmp(command[0],builtin_cmd[i])==0){
-            //printf("Checking in exec commands\n");
             return (*builtin_func[i])(command);
         }
     }
@@ -85,16 +110,90 @@ int execCommands(char** command){
 
     return ret;
 }
+int checkRedirection(char** command, char** output_filename){
+   // printf("Checking redirection in method\n");
+    int i,j; 
+    int count =0;
+    for(i=0; command[i]!=NULL; i++){
+       // printf("Printing the command %s\n", command[i]);
+        if(strcmp(command[i],">")==0){
+         //   printf("Found at %d\n", i);
+            count++;
+            if(i==0)
+                return -1; 
+
+        }
+
+        // if(strstr(command[i],">")!=NULL){
+        //     int index = strstr(command[i],">");
+        //     int j = index;
+        //     int k=0;
+        //     while(command[i][j]!='\0'){
+        //         output_filename[k]= command[i][j];
+        //         j++;
+        //         k++;
+
+        //     }
+
+        //     output_filename[k]='\0';
+        // }
+        }
+        if(count==0) return 0; 
+
+
+
+        if(count>1){
+
+           
+            return -1; 
+
+        }
+
+        
+        else{
+
+            for(i=0; command[i]!=NULL;i++){
+                if(strcmp(command[i],">")==0){
+
+                    //free(command[i]);
+
+                
+
+                if(command[i+1]!=NULL && command[i+2]==NULL) *output_filename = command[i+1];
+                else {
+                    
+                    return -1; 
+                }
+
+                for(j=i;command[j-1]!=NULL; j++){
+                    command[j] = command[j+2];
+                }
+                
+                return 1; 
+
+                }
+
+            }
+
+
+        }
+
+        return 0;
+    
+}
 
 int runbatchmode(char filename[100]){
     FILE *fptr;
 	char line[200];
 	char **args;
 	fptr = fopen(filename, "r");
+    int isredirect; 
+    char* output_filename;
 	if (fptr == NULL)
 	{
-		printf("\nUnable to open file.");
-		return 1;
+		char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+		return -1;
 	}
 	else
 	{
@@ -103,8 +202,24 @@ int runbatchmode(char filename[100]){
 		{
 			//printf("\n%s", line);
 			args=get_input(line);
+            isredirect = checkRedirection(args, &output_filename);
+            // printf("Output from isredirect %d\n", isredirect);
+            if(isredirect==1) {
+                printf("found redirection in file %s!!!\n", output_filename);
+                
+
+            }
+            else if(isredirect==-1) {
+
+               char error_message[30] = "An error has occurred\n";
+               write(STDERR_FILENO, error_message, strlen(error_message));
+
+            }
            // printf("Returned from get input with value in c[0] as %s\n", args[0]);
-			execCommands(args);
+			else {
+                //printf("found no redirection\n");
+                execCommands(args);
+               }
 		}
 	}
 	free(args);
@@ -124,7 +239,8 @@ int main(int argc, char **argv) {
     
         if(argc==2){
 
-            runbatchmode(argv[1]);
+            i  = runbatchmode(argv[1]);
+            if(i==-1) return 1;
             
         
         }
@@ -384,6 +500,13 @@ int main(int argc, char **argv) {
     }
     }
 
+    else {
+        
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message)); 
+        return 1; 
+    }
+
     return 0;
 }
 
@@ -392,7 +515,7 @@ char **get_input(char *input) {
     //printf("We are in get input\n");
     char **tokens = (char **)malloc(sizeof(char *) * 64);
 	char *token;
-	char delim[10] = " \t\n\r\a>";
+	char delim[10] = " \t\n\r\a";
 	int index_cmd = 0, bufsize = 64;
 	if (!tokens)
 	{
