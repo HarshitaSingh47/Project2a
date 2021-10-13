@@ -39,17 +39,36 @@ int wish_loop(char** command){
 
         int i = 0 ;
         int count = atoi(command[1]);
+        char* countstr = command[1];
+        int loopindex = -1;
         while(command[i]!=NULL){
+            if(strcmp(command[i],"$loop")==0){
+            //    printf("Found $loop variable\n");
+                loopindex = i;
+            }
             command[i] = command[i+2];
            // printf("Shifted command %s\n", command[i+2]);
             i++;
         }
 
+        if(loopindex != -1){
+            int i  =1 ; 
+            while (i!=count+1){
+            sprintf(countstr, "%d", i);
+            command[loopindex - 2] = countstr;
+           // printf("We replaced the $loop with%s", command[loopindex]);
+            execSystemCommands(command);
+            i++;
+
+        }
+        }
+        else{
         while(count!=0){
+
             execSystemCommands(command);
             count--;
         }
-        
+        }
 
         
     }

@@ -1,4 +1,8 @@
-This won't be printed if execvp is successul
-This won't be printed if execvp is successul
-This won't be printed if execvp is successul
-This won't be printed if execvp is successul
+1 hello world
+2 hello world
+loop 2 echo $loop hello world
+loop 2 echo $loop hello world
+path /bin /usr/bin/
+loop 2 echo $loop hello world
+path /bin /usr/bin/
+loop 3 head -n $loop tests/19.in

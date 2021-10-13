@@ -1,4 +1,3 @@
-loop -3 echo hello
-loop four echo world
-loop
-loop 3 echo hello world
+loop 2 echo $loop hello world
+path /bin /usr/bin/
+loop 3 head -n $loop tests/19.in
