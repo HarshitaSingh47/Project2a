@@ -239,7 +239,17 @@ int checkRedirection(char** command, char** output_filename){
     //     if(strstr(command[i],">")!=NULL) return 2; 
     //     }
 
-        if(count==0) return 0; 
+        if(count==0) {
+
+            
+        for(i=0; command[i]!=NULL; i++){
+       // printf("Printing the command %s\n", command[i]);
+
+        if(strstr(command[i],">")!=NULL) return 2; 
+        }
+
+            return 0; 
+        }
 
 
 
