@@ -1,3 +1,4 @@
-loop 2 echo $loop hello world
-path /bin /usr/bin/
-loop 3 head -n $loop tests/19.in
+ls tests/p2a-test>./output11
+cat ./output11
+rm -f ./output11
+exit

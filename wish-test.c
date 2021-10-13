@@ -7,6 +7,8 @@
 #include <fcntl.h>
 
 char **get_input(char *);
+char **get_input_redir(char *);
+
 int index_cmd;
 int EXITSHELL = 0;
 int wish_cd(char**);
@@ -14,12 +16,31 @@ int wish_loop(char**);
 int wish_path(char**);
 int wish_exit(char**);
 int execSystemCommands(char**);
-int index_path = 0 ; 
-char *builtin_cmd[] = {"cd",  "exit", "path", "loop"}; // "path",
+int index_path = 0; 
+int isbatchfile = 0; 
+char** path ;
+char* path_temp; 
+char *builtin_cmd[] = {"cd",  "exit", "loop", "path"}; // ,
 
-int (*builtin_func[]) (char **) = {&wish_cd , &wish_exit, &wish_path, &wish_loop}; //,&wish_path,  &wish_exit
+int (*builtin_func[]) (char **) = {&wish_cd , &wish_exit, &wish_loop, &wish_path}; //,,  &wish_exit
 
 int wish_path(char** command){
+    //printf("We are setting the path\n");
+    //free(path);
+    int i=0;
+
+    path = malloc(10*sizeof(char*));
+    if( command[1] == NULL) {free(path);
+    return 0;}
+    while(command[i+1]!=NULL){
+        path[i]=command[i+1];
+       // printf("This was appended to the path %s on position %d\n", path[i] , i);
+        i++;
+    }
+
+  // printf("Printing the path added %s\n", path[0]);
+    //execSystemCommands(command);
+    
     return 1;
 }
 
@@ -108,15 +129,64 @@ int wish_cd(char** command){
 	return 1;
 }
 
+int execPathCommands(char** args, char* path_temp){
+    pid_t child_pid;
+    int stat_loc;
+    int ret = 0;
+    child_pid = fork();
+  //  printf("Checking is path is still here %s\n", path[1]);
+
+    if (child_pid == 0) {
+            
+        ret = execl(path_temp, args[0], NULL);
+        //printf("The output for access is %d and the path is %s\n", access(path[0], X_OK), path[0]);
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        
+    } else {
+        waitpid(child_pid, &stat_loc, WUNTRACED);
+    }
+    return ret;
+}
+
+int execRedirCommands(char** command,char* filename){
+    pid_t child_pid;
+    int stat_loc;
+    int ret = 0;
+    child_pid = fork();
+   //printf("running redir commands %s\n", filename);
+
+    if (child_pid == 0) {
+        close(STDOUT_FILENO);
+        int ret = open(filename, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);  
+       // printf("ret value %d\n", ret);
+
+        ret = execvp(command[0], command);
+        //printf("The output for access is %d and the path is %s\n", access(path[0], X_OK), path[0]);
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        
+    } else {
+        waitpid(child_pid, &stat_loc, WUNTRACED);
+    }
+    return ret;
+
+}
+
 int execSystemCommands(char** command){
     pid_t child_pid;
     int stat_loc;
     int ret = 0;
     child_pid = fork();
+  //  printf("Checking is path is still here %s\n", path[1]);
+
     if (child_pid == 0) {
             
         ret = execvp(command[0], command);
-        printf("This won't be printed if execvp is successul\n");
+        //printf("The output for access is %d and the path is %s\n", access(path[0], X_OK), path[0]);
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        
     } else {
         waitpid(child_pid, &stat_loc, WUNTRACED);
     }
@@ -130,12 +200,16 @@ int execCommands(char** command){
     if(command[0]==NULL){
         return 1; 
     }
+
+    
     for(int i=0; i< num ; i++){
      //   printf("Checking in exec commands %s %s\n", command[0], builtin_cmd[i]);
 
         if(strcmp(command[0],builtin_cmd[i])==0){
             return (*builtin_func[i])(command);
         }
+
+
     }
 
     ret = execSystemCommands(command);
@@ -156,20 +230,15 @@ int checkRedirection(char** command, char** output_filename){
 
         }
 
-        // if(strstr(command[i],">")!=NULL){
-        //     int index = strstr(command[i],">");
-        //     int j = index;
-        //     int k=0;
-        //     while(command[i][j]!='\0'){
-        //         output_filename[k]= command[i][j];
-        //         j++;
-        //         k++;
-
-        //     }
-
-        //     output_filename[k]='\0';
-        // }
+        
         }
+
+    //     for(i=0; command[i]!=NULL; i++){
+    //    // printf("Printing the command %s\n", command[i]);
+
+    //     if(strstr(command[i],">")!=NULL) return 2; 
+    //     }
+
         if(count==0) return 0; 
 
 
@@ -180,6 +249,8 @@ int checkRedirection(char** command, char** output_filename){
             return -1; 
 
         }
+
+        
 
         
         else{
@@ -202,12 +273,8 @@ int checkRedirection(char** command, char** output_filename){
                 }
                 
                 return 1; 
-
                 }
-
             }
-
-
         }
 
         return 0;
@@ -221,6 +288,10 @@ int runbatchmode(char filename[100]){
 	fptr = fopen(filename, "r");
     int isredirect; 
     char* output_filename;
+    
+    path_temp = malloc(32*sizeof(char));
+    //path_temp = "/bin";
+    
 	if (fptr == NULL)
 	{
 		char error_message[30] = "An error has occurred\n";
@@ -229,15 +300,54 @@ int runbatchmode(char filename[100]){
 	}
 	else
 	{
+
 		//printf("\nFile Opened. Parsing. Parsed commands displayed first.");
+        
 		while(fgets(line, sizeof(line), fptr)!= NULL)
 		{
 			//printf("\n%s", line);
+            //printf("Loop refresh...checking if path exists %s\n",path_temp);
+            isbatchfile = 0;
 			args=get_input(line);
+            // if(strstr(line,".sh")!= NULL) {
+            //     if(path_temp!=NULL){
+            //     //printf("Found a batch file\n");
+            //     isbatchfile = 1; 
+            //     strcat(path_temp,"/");
+            //     strcat(path_temp,line);
+            //    // printf("this is path temp now%s\n", path_temp);
+            //    // printf("%d\n", access(path_temp, X_OK));
+            //     if(access(path_temp, X_OK)==0){
+            //         execPathCommands(args,path_temp);
+            //     }
+
+            //     else{
+            //     char error_message[60] = "An error has occurred nt found in access\n";
+            //     write(STDERR_FILENO, error_message, strlen(error_message));
+
+            //     }
+
+            //     }
+            // }
+            
+            
             isredirect = checkRedirection(args, &output_filename);
             // printf("Output from isredirect %d\n", isredirect);
             if(isredirect==1) {
-                printf("found redirection in file %s!!!\n", output_filename);
+              // printf("found redirection in file %s!!!\n", output_filename);
+
+
+                
+            }
+
+            if(isredirect == 2){
+                //printf("Found implicit redirection %s\n", args[1]);
+                char** breakdown; 
+                char* filename;
+                breakdown = get_input_redir(args[1]);
+                filename = breakdown[1];
+                args[2] = NULL;
+                execRedirCommands(args,filename);
                 
 
             }
@@ -251,296 +361,86 @@ int runbatchmode(char filename[100]){
 			else {
                 //printf("found no redirection\n");
                 execCommands(args);
+            //    printf("Is this a .sh file? %d\n", isbatchfile);
+            //    printf("This is where the path is set%s\n",path[0]);
+
+                // if(path[0]!=NULL){
+                // strcpy(path_temp,path[0]);
+            //    printf("%s\n", path_temp);
+                }
+
+                // else{
+                // char error_message[30] = "An error has occurred\n";
+                // write(STDERR_FILENO, error_message, strlen(error_message));
+                // }
+
+
                }
 		}
-	}
-	free(args);
+
+
+    free(args);
 	fclose(fptr);
 	return 1;
-}
+	}
+	
+
 
 
 int main(int argc, char **argv) {
-    char **command;
-    pid_t child_pid;
-    int stat_loc;
-    char* buffer;
-    size_t bufsize = 32;
-    char **path = calloc(32, sizeof(char *));
     int i;
     
         if(argc==2){
 
             i  = runbatchmode(argv[1]);
             if(i==-1) return 1;
-            
-        
         }
         else if(argc==1){
-
-         while (1) {
-
-        buffer = (char *)malloc(bufsize * sizeof(char));
-        if( buffer == NULL)
-        {
-            perror("Unable to allocate buffer");
-            exit(1);
         }
-
-        printf("> wish ");
-        getline(&buffer,&bufsize,stdin);
-        //printf("%s",buffer);
-        buffer[strcspn(buffer, "\n")] = 0;
-
-        command = get_input(buffer);
-       // printf("This is the size: %d\n",index_cmd);
-
-        if (!command[0]) {      /* Handle empty commands */
-            free(buffer);
-            free(command);
-            continue;
-        }
-
-        else if(strcmp(command[0],"path")==0){
-
-           
-            if(index_cmd==1) {
-                *path = NULL;
-                index_path = 0;
-            }
-
-            else{
-                int l;
-                int m = 1; 
-                l = index_path;
-                int ele = index_cmd-1;
-                printf("This is the index the path is at %d\n", index_path);
-                printf("The size of the command array is %d\n", index_cmd);
-
-                while (ele!=0)
-                {
-                    if(command[m]!=NULL){
-                    printf("Adding element to position %d\n",l);
-                    path[l] = command[m];
-                    printf("Writing %s to the path\n",command[m]);
-                    printf("This is what is written %s\n",path[l]);
-                    l++;
-                    m++;
-                    ele--;
-                    }
-                    else break;
-
-                    /* code */
-                }
-
-                index_path = l; 
-                printf("This is where the final index is at %d\n",index_path);
-                
-            }
-            int n = 0 ;
-            printf("This is where the final index is at %d\n",index_path);
-
-            while(n < index_path){
-
-                printf("%s\t", path[n]);
-                n++;
-
-            }
-
-        
-
-        }
-
-        else if(strcmp(command[0],"exit")==0){
-            if(index_cmd == 1)
-            exit(0);
-            else {
-
-                char error_message[30] = "An error has occurred\n";
-                write(STDERR_FILENO, error_message, strlen(error_message));
-
-            }
-
-        }
-
-        else if(strcmp(command[0],"loop")==0){
-            int i = 0;
-            if(strcmp(command[index_cmd-1],"$loop")!=0){
-                char** command2  = (char**)malloc(sizeof(char*)*3);
-
-                int j= 0; 
-
-                while(j<index_cmd){
-                    command2[j] = command[j+2];
-                    j++;
-                }
-                command2[j] = NULL;
-
-                
-
-                
-                int limit = atoi(command[1]);
-
-
-                while(i<limit){
-                i++;
-                child_pid = fork();
-                if (child_pid == 0) {
-                     
-                    /* Never returns if the call is successful */
-                    execvp(command2[0], command2);
-                    printf("This won't be printed if execvp is succesfull\n");
-                } else {
-                    
-                    waitpid(child_pid, &stat_loc, WUNTRACED);
-                }
-               
-
-                }
-
-                
-                free(command2);
-            
-            }
-
-            else{
-
-                printf("We are in the variable loop\n");
-                int count = atoi(command[1]);
-                int k = 1; 
-
-                char** command2  = (char**)malloc(sizeof(char*)*3);
-
-                int j= 0; 
-
-                while(j<index_cmd-1){
-                    command2[j] = command[j+2];
-                    j++;
-                }
-                while(k <= count){
-
-                    command2[j] = k;
-                  
-                    command2[j+1] = NULL;
-
-
-
-                    child_pid = fork();
-                    if (child_pid == 0) {
-                        
-                        /* Never returns if the call is successful */
-                        execvp(command2[0], command2);
-                        printf("This won't be printed if execvp is succesfull\n");
-                    } else {
-                        
-                        waitpid(child_pid, &stat_loc, WUNTRACED);
-                    }
-
-                    k++;
-
-                }
-
-                free(command2);
-
-                }
-
-
-
-            }
-            
-       
-            
-        
-
-        else if(strcmp(command[0],"cd") == 0 ){
-
-            if(index_cmd==2){
-
-            
-            child_pid = fork();
-            if (child_pid == 0) {
-                /* Never returns if the call is successful */
-                int ret = chdir(command[1]);
-                if(ret!=0){
-                    char error_message[30] = "An error has occurred\n";
-                    write(STDERR_FILENO, error_message, strlen(error_message));
-                }
-                
-            } else {
-                waitpid(child_pid, &stat_loc, WUNTRACED);
-            }
-
-        }
-
         else{
             char error_message[30] = "An error has occurred\n";
-            write(STDERR_FILENO, error_message, strlen(error_message)); 
+            write(STDERR_FILENO, error_message, strlen(error_message));
+
+            return 1;
         }
-        }
-
-        else if(strcmp(command[1],">")==0){
-            if(index_cmd != 3){
-            
-            char error_message[30] = "An error has occurred\n";
-            write(STDERR_FILENO, error_message, strlen(error_message)); 
-
-
-            }
-
-            else{
-                //do something
-                child_pid = fork();
-                if (child_pid == 0) {
-                    /* Never returns if the call is successful */
-                    close(STDOUT_FILENO);
-                    open(command[3], O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
-                    execve(command[0], command, path);
-                    printf("This won't be printed if execve is successul\n");
-                } else {
-                    waitpid(child_pid, &stat_loc, WUNTRACED);
-                }
-            }
-        }
-
-        else if(strstr(command[0],"sh")){
-
-        child_pid = fork();
-        if (child_pid == 0) {
-            /* Never returns if the call is successful */
-            execve(command[0], command, path);
-            printf("This won't be printed if execve is successul\n");
-        } else {
-            waitpid(child_pid, &stat_loc, WUNTRACED);
-        }
-
-        }
-
-        else{
-        child_pid = fork();
-        if (child_pid == 0) {
-            /* Never returns if the call is successful */
-            execvp(command[0], command);
-            printf("This won't be printed if execvp is successul\n");
-        } else {
-            waitpid(child_pid, &stat_loc, WUNTRACED);
-        }
-
-        }
-
-        free(buffer);
-        free(command);
-    }
-    }
-
-    else {
-        
-        char error_message[30] = "An error has occurred\n";
-        write(STDERR_FILENO, error_message, strlen(error_message)); 
-        return 1; 
-    }
 
     return 0;
 }
+
+
+char **get_input_redir(char *input) {
+
+    //printf("We are in get input\n");
+    char **tokens = (char **)malloc(sizeof(char *) * 64);
+	char *token;
+	char delim[10] = ">";
+	int index_cmd = 0, bufsize = 64;
+	if (!tokens)
+	{
+		printf("\nBuffer Allocation Error.");
+		exit(EXIT_FAILURE);
+	}
+	token = strtok(input, delim);
+	while (token != NULL)
+	{
+		tokens[index_cmd] = token;
+		index_cmd ++;
+		if (index_cmd >= bufsize)
+		{
+			bufsize += 64;
+			input = realloc(input, bufsize * sizeof(char *));
+			if (!input) // Buffer Allocation Failed
+			{
+			printf("\nBuffer Allocation Error.");
+			exit(EXIT_FAILURE);
+			}
+		}
+		token = strtok(NULL, delim);
+	}
+	tokens[index_cmd] = NULL;
+	return tokens;
+   
+}     
 
 char **get_input(char *input) {
 
@@ -573,20 +473,5 @@ char **get_input(char *input) {
 	}
 	tokens[index_cmd] = NULL;
 	return tokens;
-    // char **command = malloc(8 * sizeof(char *));
-    // char *separator = " >\n";
-    // char *parsed;
-    // index_cmd = 0;
-    // printf("We are in get input\n");
-    // parsed = strtok(input, separator);
-    // while (parsed != NULL) {
-        
-    //     command[index_cmd] = parsed;
-    //     index_cmd++;
-
-    //     parsed = strtok(NULL, separator);
-    // }
-
-    // command[index_cmd] = NULL;
-    // return command;
-}
+   
+}     
